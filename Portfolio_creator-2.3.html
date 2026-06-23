@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Portfolio — Add/Delete + Edit (Fixed)</title>
+<style>
+  html,body{
+    margin:0;height:100%;background:#111;color:#eee;
+    display:flex;justify-content:center;align-items:center;
+    font:14px system-ui,Segoe UI,Roboto,sans-serif;
+  }
+  .canvas{position:relative;width:min(95vw,1600px);height:min(95vh, calc(95vw / 1.414));aspect-ratio:1.414/1;overflow:hidden;background:#111}
+  .page{position:relative;width:100%;height:100%}
+  .item{position:absolute;overflow:hidden;cursor:pointer}
+  .item img{width:100%;height:100%;object-fit:cover;display:block;background:#222}
+  .item:hover{outline:1px dashed rgba(255,255,255,.25)}
+  .tooltip{position:absolute;left:0;bottom:100%;background:#000c;color:#fff;padding:8px;border-radius:6px;backdrop-filter:blur(2px);transform:translateY(-6px);min-width:220px;max-width:320px;pointer-events:none;opacity:0;transition:opacity .12s;font-size:13px;line-height:1.25}
+  .item:hover .tooltip{opacity:1}
+  .title{font-weight:600;margin-bottom:4px}
+  .dim{opacity:.7}
+
+  .controls{position:fixed;top:12px;right:12px;z-index:26;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .controls button, .controls input[type="text"], .controls input[type="number"]{background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:6px 10px}
+  .controls input[type=file]{display:none}
+  .badge{padding:4px 8px;background:#222;border:1px solid #444;border-radius:6px}
+  .selected{outline:2px solid #66f}
+
+  .edit .item{outline:1px dashed #66f}
+  .handle{position:absolute;width:14px;height:14px;right:-7px;bottom:-7px;background:#fff;border-radius:50%;border:2px solid #111;display:none;cursor:nwse-resize}
+  .edit .handle{display:block}
+</style>
+</head>
+<body>
+  <div class="controls">
+    <button id="btnToggle">Edit (E)</button><span id="mode" class="badge">View</span>
+    <span class="badge">Sel: <span id="selId">—</span></span>
+    <button id="btnAdd">Add</button><input id="fileAdd" type="file" accept="image/*" multiple>
+    <button id="btnAttach" disabled>Attach/Replace</button><input id="fileAttach" type="file" accept="image/*">
+    <button id="btnDelete" disabled>Delete</button>
+    <input id="inpZ" type="number" min="1" max="25" value="1" title="z-index">
+    <input id="inpTitle" type="text" placeholder="Title">
+    <input id="inpClient" type="text" placeholder="Client">
+    <input id="inpDate" type="text" placeholder="Date">
+    <input id="inpDesc" type="text" placeholder="Description">
+    <input id="inpLink" type="text" placeholder="https://...">
+    <input id="inpMobileOrder" type="number" min="1" max="99" placeholder="Mobile #">
+    <button id="btnApply">Apply</button>
+    <button id="btnExport">Export</button>
+  </div>
+
+  <div class="canvas"><div class="page" id="page"></div></div>
+
+<script>
+let items = [{"id": "item1", "title": "LEG Room", "client": "For myself - Arts & crafts & necessities", "date": "2025", "description": "My personal Art space for cool shit. HQ of the astral-pirates Aargauerstrasse 60/02 - come by any time (wip)", "link": "http://www.astralpirates.com", "src": "", "x": 64.416667, "y": 27.823743, "w": 35.583333, "h": 27.176679, "z": 2}, {"id": "item2", "title": "Valyo", "client": "Infocentric for Raiffeisen", "date": "2019-2022", "description": "Swiss-based Fintech startup that pursues the vision of a modern, open and transparent financial bond market. ", "link": "https://www.valyo.ch", "src": "", "x": 52.583333, "y": 69.990732, "w": 47.75, "h": 30.411998, "z": 2}, {"id": "item3", "title": "Papa", "client": "My Family - Arts & crafts & necessities", "date": "since 2021", "description": "Enabling my kids (1 & 3 years) in art and technology", "link": null, "src": "", "x": 50.0, "y": 0.107844, "w": 18.166667, "h": 26.637459, "z": 3}, {"id": "item4", "title": "LiT", "client": "Ansicht for Universit\u00e4t Z\u00fcrich - Chair of global history", "date": "2017-2019", "description": "Collaboration between Ansicht and UZH to explore the usage of technology for research and teaching. \u201cLives in Transit\u201d is a tool both to narrate and to teach global history in a digitized age", "link": "https://www.livesintransit.org", "src": "", "x": 0.083333, "y": 69.882888, "w": 38.75, "h": 30.843373, "z": 4}, {"id": "item5", "title": "Univesikum", "client": "Stadt Z\u00fcrich", "date": "2015-2020", "description": "Teaching robotics and design thinking for gifted children age 7-12.", "link": "https://www.stadt-zuerich.ch/schulen/de/gubel/unterricht/foerderangebot/universikum.html", "src": "", "x": 24.583333, "y": 14.774623, "w": 26.083333, "h": 16.715814, "z": 7}, {"id": "item6", "title": "Franke", "client": "Valtech for Franke", "date": "2020-2022", "description": "Transforming Franke\u2019s web-channels, tools and processes to match the digital users need. Facilitating cultureal change and transformation tailored to their diverse range of customers and stakeholders.", "link": "https://www.franke.com", "src": "", "x": 24.166667, "y": 79.373157, "w": 34.5, "h": 21.245261, "z": 6}, {"id": "item7", "title": "E.L.S.A.", "client": "Myself - Arts & crafts & necessities", "date": "2024-2025", "description": "E.L.S.A.: Experimental Live Synthetic Automaton\u2028\u2028Mobile Art Totem", "link": "https://www.astralpirates.com", "src": "", "x": 68.416667, "y": 0.0, "w": 31.5, "h": 30.519842, "z": 7}, {"id": "item8", "title": "Kids&Robots", "client": "BA Thesis", "date": "2014", "description": "Robotics as medium in teaching\nPersonally struggling in school settings, I explored methods of making knowledge relevant and enabling kids to explore and learning about technology early (5-10 years)", "link": "https://www.zhdk.ch", "src": "", "x": 27.029438, "y": 0.115444, "w": 18.644068, "h": 16.739421, "z": 8}, {"id": "item9", "title": "Synthesizer", "client": "Sol Riklin - Arts & crafts & necessities", "date": "2025", "description": "A Synthesizer for my son\u2019s 2nd birthday, to enable him in exploring sound and technology (wip)", "link": null, "src": "", "x": 45.083333, "y": 14.666779, "w": 6.25, "h": 17.039346, "z": 9}, {"id": "item10", "title": "Phoniebox", "client": "Io Riklin - Arts & crafts & necessities", "date": "2024", "description": "Instead of buying a tonibox, I decided to build", "link": "https://github.com/MiczFlor/RPi-Jukebox-RFID", "src": "", "x": 44.0, "y": -2.480411, "w": 8.5, "h": 17.902098, "z": 10}, {"id": "item11", "title": "Zauberwald", "client": "Art - Verein Zauberwald Lenzerheide", "date": "2016", "description": "Whispering rumor tree: Art installation using Light, sound and visitor\u2019s voices", "link": "https://www.zauberwald.ch", "src": "", "x": 92.083333, "y": 22.3237, "w": 7.916667, "h": 21.460949, "z": 11}, {"id": "item12", "title": "EL-Chair", "client": "Art collaboration with La Silla Acapulco", "date": "2017", "description": "Acapulco chair 2.0: Furniture that reacts to people.", "link": "https://www.youtube.com/watch?time_continue=1&v=QzCXwuvbteI&embeds_referring_euri=https://www.google.com/&source_ve_path=Mjg2NjY", "src": "", "x": 48.166667, "y": 26.529615, "w": 21.166667, "h": 24.264892, "z": 1}, {"id": "item13", "title": "3dsMax", "client": "Beck & friends", "date": "2009-2010", "description": "Various projects in 3D modeling / animations in 3dsMax&Maya", "link": "https://beckandfriends.ch/", "src": "", "x": -0.333333, "y": 12.617744, "w": 11.166667, "h": 21.245261, "z": 13}, {"id": "item14", "title": "Bystronic", "client": "Beck & friends for bystronic", "date": "2009-2010", "description": "Modeling and animation to create bystronic\u2019s virtual factory", "link": "https://www.bystronic.com/che/de", "src": "", "x": -0.083333, "y": 25.019799, "w": 24.5, "h": 30.843373, "z": 10}, {"id": "item15", "title": "EDI_3D", "client": "Beck & friends for Swissfilm Assossiation", "date": "2010", "description": "3D modeling and animation for the award show Ed (in stereo 3D)", "link": "https://www.edinet.ch/archive-events/event?year=2010", "src": "", "x": 0.083333, "y": 55.755329, "w": 41.083333, "h": 14.019715, "z": 7}, {"id": "item16", "title": "Digging", "client": "Kollektiv 60/02", "date": "2025", "description": "Creation of a burning concrete table in a forest (wip)", "link": "https://basislager-zueri.ch/", "src": "", "x": 21.333333, "y": 24.804112, "w": 47.0, "h": 60.069088, "z": 1}, {"id": "item17", "title": "Typeface", "client": "Ansicht for Badesaison", "date": "2015", "description": "A Font that is as individual as you! ", "link": "https://badesaison.ch/", "src": "", "x": 48.833333, "y": 53.921982, "w": 37.25, "h": 24.157048, "z": 17}, {"id": "item18", "title": "Floor", "client": "Art", "date": "2013", "description": "Designing an iteractive Space with tiny budget", "link": "https://www.zhdk.ch", "src": "", "x": 83.666667, "y": 54.13767, "w": 16.333333, "h": 21.784481, "z": 18}, {"id": "item19", "title": "CAD", "client": "Home - Arts & crafts", "date": "2024", "description": "Custom Interior Design to make the most out of the space available (wip)", "link": null, "src": "", "x": -0.083333, "y": -8.843205, "w": 27.0, "h": 40.333642, "z": 1}];
+const MAX_ITEMS = 25;
+const page = document.getElementById('page');
+const btnToggle = document.getElementById('btnToggle');
+const mode = document.getElementById('mode');
+const btnAdd = document.getElementById('btnAdd');
+const fileAdd = document.getElementById('fileAdd');
+const btnAttach = document.getElementById('btnAttach');
+const fileAttach = document.getElementById('fileAttach');
+const btnDelete = document.getElementById('btnDelete');
+const selId = document.getElementById('selId');
+const inpZ = document.getElementById('inpZ');
+const inpTitle = document.getElementById('inpTitle');
+const inpClient = document.getElementById('inpClient');
+const inpDate = document.getElementById('inpDate');
+const inpDesc = document.getElementById('inpDesc');
+const inpLink = document.getElementById('inpLink');
+const btnApply = document.getElementById('btnApply');
+const inpMobileOrder = document.getElementById('inpMobileOrder');
+let selectedId = null;
+let editMode = false;
+
+function pct(v){return v+'%'}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+function setEdit(on){ editMode=on; document.body.classList.toggle('edit', on); mode.textContent = on?'Edit':'View'; }
+btnToggle.onclick = ()=> setEdit(!editMode);
+document.addEventListener('keydown', e=>{ if(e.key.toLowerCase()==='e') setEdit(!editMode); });
+
+function render(){ page.innerHTML=''; items.forEach(place); }
+function place(it){
+  const el=document.createElement('div'); el.className='item'; el.id=it.id;
+  const w=clamp(it.w,0,100), h=clamp(it.h,0,100), l=clamp(it.x,0,100-w), t=clamp(it.y,0,100-h);
+  el.style.left=pct(l); el.style.top=pct(t); el.style.width=pct(w); el.style.height=pct(h); el.style.zIndex=clamp(it.z||1,1,25);
+  const img=new Image(); img.src=it.src||''; img.alt=it.title||''; el.appendChild(img);
+  const tip=document.createElement('div'); tip.className='tooltip';
+  tip.innerHTML= '<div class="title">'+(it.title||'')+'</div>'+
+                  '<div class="dim">Client:</div><div>'+(it.client||'—')+'</div>'+
+                  '<div class="dim">Date:</div><div>'+(it.date||'—')+'</div>'+
+                  '<div class="dim">Description:</div><div>'+(it.description||'—')+'</div>';
+  el.appendChild(tip);
+
+  el.addEventListener('mousedown', ev=>{ 
+    if(!editMode) return;
+    ev.preventDefault(); ev.stopPropagation();
+    select(it.id);
+    if(ev.target.classList.contains('handle')) return;
+    startMove(el,it,ev);
+  });
+
+  el.addEventListener('click', ev=>{ if(editMode) { ev.stopPropagation(); return; } if(it.link) window.open(it.link,'_blank'); });
+
+  const handle = document.createElement('div'); handle.className='handle';
+  handle.addEventListener('mousedown', ev=>{ if(!editMode) return; ev.preventDefault(); ev.stopPropagation(); select(it.id); startResize(el,it,ev); });
+  el.appendChild(handle);
+
+  page.appendChild(el);
+}
+
+function clearSelection(){
+  selectedId=null; selId.textContent='—'; btnDelete.disabled=true; btnAttach.disabled=true;
+  document.querySelectorAll('.item').forEach(n=>n.classList.remove('selected'));
+}
+
+function select(id){
+  selectedId=id; selId.textContent=id; btnDelete.disabled=false; btnAttach.disabled=false;
+  const it = items.find(x=>x.id===id);
+  inpZ.value = clamp(it.z||1,1,25);
+  inpTitle.value = it.title||'';
+  inpClient.value = it.client||'';
+  inpDate.value = it.date||'';
+  inpDesc.value = it.description||'';
+  inpLink.value = it.link||'';
+  inpMobileOrder.value = it.mobileOrder||'';
+  document.querySelectorAll('.item').forEach(n=>n.classList.remove('selected'));
+  const el=document.getElementById(id); if(el) el.classList.add('selected');
+}
+
+document.addEventListener('click', e=>{
+  if(e.target.closest('.controls')) return;
+  if(e.target.closest('.item')) return;
+  clearSelection();
+});
+
+btnApply.onclick = ()=>{ if(!selectedId) return; const it=items.find(x=>x.id===selectedId); if(!it) return;
+  it.z = clamp(parseInt(inpZ.value)||1,1,25);
+  it.title = inpTitle.value||''; it.client=inpClient.value||''; it.date=inpDate.value||'';
+  it.description=inpDesc.value||''; it.link=inpLink.value||''; it.mobileOrder=parseInt(inpMobileOrder.value)||0; render(); saveState(); select(it.id);
+};
+
+btnAdd.onclick = ()=> fileAdd.click();
+fileAdd.onchange = async (e)=>{
+  const files = Array.from(e.target.files||[]);
+  if(items.length + files.length > MAX_ITEMS){ alert('Max 25'); return; }
+  for(const f of files){
+    const dataUrl = await new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(f); });
+    const id='item'+Math.random().toString(36).slice(2,8);
+    items.push({id,title:f.name,client:'',date:'',description:'',link:'',src:dataUrl,x:10,y:10,w:20,h:20,z:1});
+  }
+  render(); saveState(); fileAdd.value='';
+};
+
+btnAttach.onclick = ()=> fileAttach.click();
+fileAttach.onchange = async (e)=>{ if(!selectedId) return; const f=e.target.files?.[0]; if(!f) return;
+  const dataUrl = await new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(f); });
+  const it = items.find(x=>x.id===selectedId); if(it) it.src=dataUrl; render(); select(it.id); saveState(); fileAttach.value='';
+};
+
+btnDelete.onclick = ()=>{ if(!selectedId) return; items = items.filter(it=>it.id!==selectedId); clearSelection(); render(); saveState(); };
+
+function startMove(el,it,down){
+  const rect = page.getBoundingClientRect();
+  const s={x:down.clientX,y:down.clientY,l:el.offsetLeft,t:el.offsetTop,w:el.offsetWidth,h:el.offsetHeight};
+  function onMove(e){ const dx=e.clientX-s.x, dy=e.clientY-s.y; const nl=clamp(s.l+dx,0,rect.width-s.w); const nt=clamp(s.t+dy,0,rect.height-s.h); el.style.left=nl+'px'; el.style.top=nt+'px'; }
+  function onUp(){ const r=page.getBoundingClientRect(); it.x=(el.offsetLeft/r.width)*100; it.y=(el.offsetTop/r.height)*100; window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp); saveState(); }
+  window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp);
+}
+function startResize(el,it,down){
+  const rect = page.getBoundingClientRect();
+  const s={x:down.clientX,y:down.clientY,w:el.offsetWidth,h:el.offsetHeight,l:el.offsetLeft,t:el.offsetTop};
+  function onMove(e){ const dx=e.clientX-s.x, dy=e.clientY-s.y; const nw=clamp(s.w+dx,30,rect.width-s.l); const nh=clamp(s.h+dy,30,rect.height-s.t); el.style.width=nw+'px'; el.style.height=nh+'px'; }
+  function onUp(){ const r=page.getBoundingClientRect(); it.w=(el.offsetWidth/r.width)*100; it.h=(el.offsetHeight/r.height)*100; window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp); saveState(); }
+  window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp);
+}
+
+document.getElementById('btnExport').onclick = () => {
+  var S = '<' + 'script>';
+  var SE = '</' + 'script>';
+
+  var css = [
+    '*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }',
+    'html, body { background:#111; color:#eee; font:14px system-ui,Segoe UI,Roboto,sans-serif; height:100%; }',
+    '.desktop-view { display:flex; justify-content:center; align-items:center; width:100%; height:100%; }',
+    '.canvas { position:relative; width:100%; height:100%; max-width:100vw; max-height:100vh; aspect-ratio:1.414/1; background:#111; }',
+    '.page { position:relative; width:100%; height:100%; }',
+    '.item { position:absolute; cursor:pointer; overflow:hidden; }',
+    '.item img { width:100%; height:100%; object-fit:cover; display:block; }',
+    '.info-bar { position:absolute; left:24.583333%; top:26.704112%; width:43.8%; height:52.5%; z-index:25; color:#fff; opacity:0; transition:opacity .12s; pointer-events:none; display:flex; align-items:flex-start; justify-content:flex-start; box-sizing:border-box; }',
+    '.info-bg { position:absolute; inset:0; background:hsla(0,70%,45%,0.5); }',
+    '.info-content { position:relative; z-index:1; font-size:13px; line-height:1.5; padding:25%; word-break:break-word; }',
+    '.title { font-weight:700; font-size:1.1em; letter-spacing:0.04em; display:block; margin-bottom:6px; }',
+    '.mobile-view { display:none; }',
+    '@media (max-width:700px) {',
+    '  html, body { height:auto; overflow-x:hidden; }',
+    '  .desktop-view { display:none; }',
+    '  .mobile-view { display:block; width:100%; }',
+    '  .m-project { position:relative; width:100%; }',
+    '  .m-img-wrap { position:-webkit-sticky; position:sticky; top:0; width:100%; z-index:1; }',
+    '  .m-img-wrap img { width:100%; height:auto; display:block; }',
+    '  .m-info { position:relative; z-index:2; width:100%; min-height:60vh; padding:20px 20px 28px; line-height:1.6; font-size:15px; word-break:break-word; }',
+    '  .m-info .title { font-size:1.15em; letter-spacing:0.05em; margin-bottom:8px; }',
+    '  .m-info p { margin:0; opacity:0.85; }',
+    '}',
+    '#copyright { position:fixed; bottom:16px; left:16px; z-index:100; cursor:default; display:flex; align-items:center; }',
+    '#cpIcon { font-size:13px; opacity:0.5; color:#eee; user-select:none; transition:opacity .2s; }',
+    '#cpText { font-size:11px; color:#eee; opacity:0; transition:opacity .2s; white-space:nowrap; margin-left:4px; user-select:none; }',
+    '#copyright:hover #cpIcon { opacity:0.7; }',
+    '#copyright:hover #cpText { opacity:0.7; }'
+  ].join('\n');
+
+  var js = 'var items=' + JSON.stringify(items) + ';\n'
+    + 'function rndColor(a){var h=Math.floor(Math.random()*360);return"hsla("+h+",70%,45%,"+a+")";}\n'
+    + 'function clamp(v,a,b){return Math.max(a,Math.min(b,v));}\n'
+    + 'function pct(v){return v+"%";}\n'
+    + 'var page=document.getElementById("page1");\n'
+    + 'var bar=document.getElementById("infobar");\n'
+    + 'var bg=document.getElementById("infobg");\n'
+    + 'var cnt=document.getElementById("infocontent");\n'
+    + 'function setBar(it){\n'
+    + '  bg.style.background=rndColor(0.5);\n'
+    + '  if(it.title==="Digging"){\n'
+    + '    cnt.innerHTML=\'<span class="title">Ramun Riklin</span><br><span>Art | Design | Tech</span><br><br><a href="mailto:riklin@gmx.ch" style="color:white;text-decoration:underline">riklin@gmx.ch</a><br><br><span>Aargauerstrasse 60|02<br>8048 Z\\u00fcrich</span><br><span>+41 (0)79 451 77 07</span>\';\n'
+    + '  } else {\n'
+    + '    var p=[];\n'
+    + '    if(it.title)p.push(\'<span class="title">\'+it.title+\'</span>\');\n'
+    + '    if(it.client)p.push("<span>"+it.client+"</span>");\n'
+    + '    if(it.date)p.push("<span>"+it.date+"</span>");\n'
+    + '    if(it.description)p.push("<span>"+it.description+"</span>");\n'
+    + '    cnt.innerHTML=p.join("<br>");\n'
+    + '  }\n'
+    + '}\n'
+    + 'function placeItem(it){\n'
+    + '  var el=document.createElement("div");el.className="item";\n'
+    + '  var w=clamp(it.w,0,100),h=clamp(it.h,0,100),l=clamp(it.x,0,100-w),t=clamp(it.y,0,100-h);\n'
+    + '  el.style.cssText="left:"+pct(l)+";top:"+pct(t)+";width:"+pct(w)+";height:"+pct(h)+";z-index:"+(it.z||1);\n'
+    + '  var img=document.createElement("img");img.src=it.src;img.alt=it.title||"";\n'
+    + '  el.appendChild(img);\n'
+    + '  el.addEventListener("mouseenter",function(){setBar(it);bar.style.opacity=1;});\n'
+    + '  el.addEventListener("mouseleave",function(){bar.style.opacity=0;});\n'
+    + '  el.addEventListener("click",function(){if(it.link)window.open(it.link,"_blank");});\n'
+    + '  page.appendChild(el);\n'
+    + '}\n'
+    + 'items.forEach(placeItem);\n'
+    + 'var mv=document.getElementById("mobileView");\n'
+    + 'var mi=[].concat(items).sort(function(a,b){return(a.mobileOrder||999)-(b.mobileOrder||999);});\n'
+    + 'mi.forEach(function(it){\n'
+    + '  var color=rndColor(0.92);\n'
+    + '  var proj=document.createElement("div");proj.className="m-project";\n'
+    + '  var iw=document.createElement("div");iw.className="m-img-wrap";\n'
+    + '  var img=document.createElement("img");img.src=it.src||"";img.alt=it.title||"";\n'
+    + '  iw.appendChild(img);\n'
+    + '  var info=document.createElement("div");info.className="m-info";info.style.background=color;\n'
+    + '  var h="";\n'
+    + '  if(it.title==="Digging"){\n'
+    + '    h=\'<span class="title">Ramun Riklin</span><p>Art | Design | Tech<br><br><a href="mailto:riklin@gmx.ch" style="color:white;text-decoration:underline">riklin@gmx.ch</a><br><br>Aargauerstrasse 60|02<br>8048 Z\\u00fcrich<br>+41 (0)79 451 77 07</p>\';\n'
+    + '  } else {\n'
+    + '    if(it.title)h+=\'<span class="title">\'+it.title+\'</span>\';\n'
+    + '    var lines=[];\n'
+    + '    if(it.client)lines.push(it.client);\n'
+    + '    if(it.date)lines.push(it.date);\n'
+    + '    if(it.description)lines.push(it.description);\n'
+    + '    if(lines.length)h+="<p>"+lines.join("<br>")+"</p>";\n'
+    + '  }\n'
+    + '  info.innerHTML=h;\n'
+    + '  if(it.link){proj.style.cursor="pointer";proj.addEventListener("click",function(){window.open(it.link,"_blank");});}\n'
+    + '  proj.appendChild(iw);\n'
+    + '  proj.appendChild(info);\n'
+    + '  mv.appendChild(proj);\n'
+    + '});\n';
+
+  var body = '<div class="desktop-view">\n'
+    + '  <div class="canvas">\n'
+    + '    <div class="page" id="page1"></div>\n'
+    + '    <div id="infobar" class="info-bar">\n'
+    + '      <div class="info-bg" id="infobg"></div>\n'
+    + '      <div class="info-content" id="infocontent"></div>\n'
+    + '    </div>\n'
+    + '  </div>\n'
+    + '</div>\n'
+    + '<div class="mobile-view" id="mobileView"></div>\n'
+    + '<div id="copyright"><span id="cpIcon">@</span><span id="cpText">RA-moon@astralpirates.com 2025</span></div>\n'
+    + S + '\n' + js + SE;
+
+  var html = '<!doctype html>\n<html lang="de">\n<head>\n'
+    + '<meta charset="utf-8"/>\n'
+    + '<meta name="viewport" content="width=device-width,initial-scale=1"/>\n'
+    + '<title>Portfolio</title>\n'
+    + '<style>\n' + css + '\n</style>\n'
+    + '</head>\n<body>\n'
+    + body
+    + '\n</body>\n</html>';
+
+  var blob = new Blob([html], {type:'text/html'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'index.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+
+function saveState(){
+  try { localStorage.setItem('portfolio_items', JSON.stringify(items)); } catch(e){}
+}
+function loadState(){
+  try {
+    const saved = localStorage.getItem('portfolio_items');
+    if(saved){ items = JSON.parse(saved); }
+  } catch(e){}
+}
+loadState();
+
+render();
+</script>
+</body>
+</html>
